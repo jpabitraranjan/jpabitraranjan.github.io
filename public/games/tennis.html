@@ -1,0 +1,101 @@
+<!doctype html>
+<!--
+  STAND-IN FILE. The live site serves an adapted version of this game (touch + keyboard
+  support, and a "tennis-close" postMessage to the parent). That exact file was not part of
+  the JS bundle, so replace this with the one from the live site:
+  https://wispr-portfolio.emergent.host/games/tennis.html  (open it, then Save As).
+  This stand-in is the original game from github.com/jpabitraranjan/Tennis plus basic
+  touch and arrow-key control.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; display: flex; align-items: center; justify-content: center; }
+      canvas { max-width: 100%; max-height: 100%; touch-action: none; }
+    </style>
+  </head>
+  <body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+      var canvas, ctx;
+      var ballX = 50, ballY = 50, ballSpeedX = 10, ballSpeedY = 4;
+      var player1Score = 0, player2Score = 0;
+      const WINNING_SCORE = 10;
+      var showingWinScreen = false;
+      var paddle1Y = 250, paddle2Y = 250;
+      const PADDLE_THICKNESS = 10, PADDLE_HEIGHT = 100;
+
+      function setPaddleFromClientY(clientY) {
+        var rect = canvas.getBoundingClientRect();
+        var scale = canvas.height / rect.height;
+        paddle1Y = (clientY - rect.top) * scale - PADDLE_HEIGHT / 2;
+      }
+
+      window.onload = function () {
+        canvas = document.getElementById('gameCanvas');
+        ctx = canvas.getContext('2d');
+        setInterval(function () { moveEverything(); drawEverything(); }, 1000 / 30);
+        canvas.addEventListener('mousedown', function () { showingWinScreen = false; });
+        canvas.addEventListener('touchstart', function () { showingWinScreen = false; }, { passive: true });
+        canvas.addEventListener('mousemove', function (e) { setPaddleFromClientY(e.clientY); });
+        canvas.addEventListener('touchmove', function (e) { setPaddleFromClientY(e.touches[0].clientY); }, { passive: true });
+        window.addEventListener('keydown', function (e) {
+          if (e.key === 'ArrowUp') paddle1Y -= 30;
+          if (e.key === 'ArrowDown') paddle1Y += 30;
+          if (e.key === 'Escape') parent.postMessage({ type: 'tennis-close' }, '*');
+        });
+      };
+
+      function ballReset() {
+        if (player1Score >= WINNING_SCORE || player2Score >= WINNING_SCORE) {
+          player1Score = 0; player2Score = 0; showingWinScreen = true;
+        }
+        ballSpeedX = -ballSpeedX; ballX = canvas.width / 2; ballY = canvas.height / 2;
+      }
+
+      function computerMovement() {
+        var c = paddle2Y + PADDLE_HEIGHT / 2;
+        if (c < ballY - 35) paddle2Y += 6; else if (c > ballY + 35) paddle2Y -= 6;
+      }
+
+      function moveEverything() {
+        if (showingWinScreen) return;
+        computerMovement();
+        ballX += ballSpeedX; ballY += ballSpeedY;
+        if (ballX < 0) {
+          if (ballY > paddle1Y && ballY < paddle1Y + PADDLE_HEIGHT) {
+            ballSpeedX = -ballSpeedX; ballSpeedY = (ballY - (paddle1Y + PADDLE_HEIGHT / 2)) * 0.35;
+          } else { player2Score++; ballReset(); }
+        }
+        if (ballX > canvas.width) {
+          if (ballY > paddle2Y && ballY < paddle2Y + PADDLE_HEIGHT) {
+            ballSpeedX = -ballSpeedX; ballSpeedY = (ballY - (paddle2Y + PADDLE_HEIGHT / 2)) * 0.35;
+          } else { player1Score++; ballReset(); }
+        }
+        if (ballY < 0 || ballY > canvas.height) ballSpeedY = -ballSpeedY;
+      }
+
+      function colorRect(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
+      function colorCircle(x, y, r, c) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2, true); ctx.fill(); }
+
+      function drawEverything() {
+        colorRect(0, 0, canvas.width, canvas.height, 'black');
+        ctx.fillStyle = 'white';
+        if (showingWinScreen) {
+          if (player1Score >= WINNING_SCORE) ctx.fillText('Computer Won!', 360, 200);
+          ctx.fillText('Click to Continue', 357, 500);
+          return;
+        }
+        ctx.fillText('PABITRA RANJAN JENA', 340, 313);
+        for (var i = 0; i < canvas.height; i += 40) colorRect(canvas.width / 2 - 1, i, 2, 20, 'white');
+        colorRect(0, paddle1Y, PADDLE_THICKNESS, PADDLE_HEIGHT, 'white');
+        colorRect(canvas.width - PADDLE_THICKNESS, paddle2Y, PADDLE_THICKNESS, PADDLE_HEIGHT, 'white');
+        colorCircle(ballX, ballY, 10, 'white');
+        ctx.fillText(player1Score, 100, 100);
+        ctx.fillText(player2Score, canvas.width - 100, 100);
+      }
+    </script>
+  </body>
+</html>
